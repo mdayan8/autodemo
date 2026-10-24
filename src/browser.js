@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -6,17 +7,21 @@ export const HOME = process.env.AUTODEMO_HOME || path.join(os.homedir(), '.autod
 export const VIEWPORT = { width: 1280, height: 720 };
 export const DPR = 2;
 
+// Playwright's own Chromium when it is downloaded, otherwise the Google Chrome already on the Mac
+// (nothing to install).
+export const engine = () => (fs.existsSync(chromium.executablePath()) ? {} : { channel: 'chrome' });
+
 const profileDir = (name) => path.join(HOME, 'profiles', name);
 
 // With a profile: persistent context, so sign-ins survive between runs.
 // Without: a throwaway context.
 export async function launch({ profile, headless = true, viewport = VIEWPORT } = {}) {
-  const opts = { headless, viewport, deviceScaleFactor: DPR, colorScheme: 'light', locale: 'en-US' };
+  const opts = { ...engine(), headless, viewport, deviceScaleFactor: DPR, colorScheme: 'light', locale: 'en-US' };
   let ctx, browser;
   if (profile) {
     ctx = await chromium.launchPersistentContext(profileDir(profile), opts);
   } else {
-    browser = await chromium.launch({ headless });
+    browser = await chromium.launch({ ...engine(), headless });
     ctx = await browser.newContext(opts);
   }
   // Recordings are single-tab: links that open a new tab open in place instead.

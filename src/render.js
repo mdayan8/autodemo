@@ -1,4 +1,5 @@
 import { chromium } from 'playwright';
+import { engine } from './browser.js';
 import { spawn } from 'node:child_process';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -279,7 +280,7 @@ async function renderVideo(meta, dir, name, size, fps, progress) {
   if (free < need) throw new Error(`Not enough disk space to render ${Math.round(total)}s at ${W}x${H}: needs about ${Math.round(need / 1e6)} MB, ${Math.round(free / 1e6)} MB free. Free some space (or use output.resolution "1080p") and run: autodemo render ${dir}`);
   const workers = Math.max(1, Math.min(meta.workers ?? 4, Math.floor(os.cpus().length / 2), Math.ceil(frames.length / 90)));
   const per = Math.ceil(frames.length / workers);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch(engine());
   const parts = [];
   const tick = setInterval(() => progress(`rendering ${name} (${W}x${H}, ${workers} workers)`), 15000);
   try {

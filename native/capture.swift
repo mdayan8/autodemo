@@ -35,9 +35,33 @@ func arg(_ name: String) -> String? {
 }
 let nowMs = { Date().timeIntervalSince1970 * 1000 }
 
+// Own identity for macOS permissions. Some hosts (Claude's Chat section, launchd) start agents through a
+// process that disclaims responsibility, so Screen Recording would be checked against `node`, which the
+// user can't sensibly allow. Re-launching ourselves with responsibility disclaimed makes macOS ask about
+// "autodemo" (this app bundle) instead: allowed once, works from any agent host.
+@_silgen_name("responsibility_spawnattrs_setdisclaim")
+func setDisclaim(_ attrs: UnsafeMutablePointer<posix_spawnattr_t?>, _ disclaim: Int32) -> Int32
+nonisolated(unsafe) var childPid: pid_t = 0
+
+func ownIdentity() {
+  guard getenv("AUTODEMO_OWN") == nil, let exe = Bundle.main.executablePath, exe.contains(".app/") else { return }
+  setenv("AUTODEMO_OWN", "1", 1)
+  var attr: posix_spawnattr_t? = nil
+  posix_spawnattr_init(&attr)
+  _ = setDisclaim(&attr, 1)
+  guard posix_spawn(&childPid, exe, nil, &attr, CommandLine.unsafeArgv, environ) == 0 else { unsetenv("AUTODEMO_OWN"); return }
+  for sig in [SIGTERM, SIGINT, SIGHUP] { signal(sig) { s in kill(childPid, s) } }
+  var status: Int32 = 0
+  while waitpid(childPid, &status, 0) == -1 && errno == EINTR {}
+  exit((status & 0x7f) == 0 ? (status >> 8) & 0xff : 1)
+}
+
 func content() async -> SCShareableContent {
   do { return try await SCShareableContent.excludingDesktopWindows(true, onScreenWindowsOnly: false) }
-  catch { fail("Screen Recording permission is needed. Allow it in System Settings > Privacy & Security > Screen & System Audio Recording for the app running your agent (e.g. Claude or Terminal), then retry. (\(error.localizedDescription))") }
+  catch {
+    CGRequestScreenCaptureAccess() // shows the macOS prompt for "autodemo" the first time
+    fail("Screen Recording permission is needed for \"autodemo\". Allow it in System Settings > Privacy & Security > Screen & System Audio Recording (turn on autodemo), then retry. (\(error.localizedDescription))")
+  }
 }
 
 func filter() async -> (SCContentFilter, CGRect) {
@@ -98,6 +122,7 @@ final class Sink: NSObject, SCStreamOutput, SCStreamDelegate, SCRecordingOutputD
 @main
 struct Capture {
   static func main() async {
+    ownIdentity()
     _ = NSApplication.shared // connects to the window server (required for CLI capture)
     let cmd = CommandLine.arguments.dropFirst().first ?? ""
     switch cmd {
@@ -205,7 +230,7 @@ struct Capture {
 
     case "act":
       if !AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary) {
-        fail("Accessibility permission is needed for autodemo to click and type. Allow it in System Settings > Privacy & Security > Accessibility for the app running your agent (e.g. Claude or Terminal), then retry.")
+        fail("Accessibility permission is needed for autodemo to click and type. Allow it in System Settings > Privacy & Security > Accessibility (turn on autodemo), then retry.")
       }
       let a = Array(CommandLine.arguments.dropFirst(2))
       let src = CGEventSource(stateID: .hidSystemState)

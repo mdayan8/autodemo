@@ -9,15 +9,27 @@ import { HOME } from './browser.js';
 
 const run = promisify(execFile);
 const SRC = fileURLToPath(new URL('../native/capture.swift', import.meta.url));
-const BIN = path.join(HOME, 'bin', 'autodemo-capture');
+// Built as a tiny app bundle so macOS lists it as "autodemo" under Screen Recording / Accessibility.
+const APP = path.join(HOME, 'autodemo.app');
+const BIN = path.join(APP, 'Contents', 'MacOS', 'autodemo-capture');
+const PLIST = `<?xml version="1.0" encoding="UTF-8"?>
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>dev.autodemo.capture</string>
+<key>CFBundleName</key><string>autodemo</string>
+<key>CFBundleExecutable</key><string>autodemo-capture</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>LSUIElement</key><true/>
+</dict></plist>`;
 
 export async function helper() {
   if (process.platform !== 'darwin') throw new Error('Camera mode needs macOS (ScreenCaptureKit).');
   const stale = !fs.existsSync(BIN) || fs.statSync(BIN).mtimeMs < fs.statSync(SRC).mtimeMs;
   if (stale) {
     fs.mkdirSync(path.dirname(BIN), { recursive: true });
+    fs.writeFileSync(path.join(APP, 'Contents', 'Info.plist'), PLIST);
     try {
       await run('swiftc', ['-O', '-parse-as-library', SRC, '-o', BIN], { timeout: 300000 });
+      await run('codesign', ['--force', '--sign', '-', '--identifier', 'dev.autodemo.capture', APP]);
     } catch (e) {
       throw new Error(`Could not build the native recorder (needs Xcode Command Line Tools: xcode-select --install). ${e.stderr || e.message}`);
     }
