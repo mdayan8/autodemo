@@ -20,5 +20,7 @@
     "video",
     "screen-recorder",
     "mcp"
-  ]
+  ],
+  "repository": "https://github.com/mdayan8/autodemo",
+  "license": "MIT"
 }

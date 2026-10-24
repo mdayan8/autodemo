@@ -13,7 +13,8 @@
     "native",
     ".claude-plugin",
     "examples",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "test": "node test/check.js"
@@ -45,5 +46,14 @@
     "darwin",
     "linux",
     "win32"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mdayan8/autodemo.git"
+  },
+  "homepage": "https://github.com/mdayan8/autodemo#readme",
+  "bugs": {
+    "url": "https://github.com/mdayan8/autodemo/issues"
+  },
+  "author": "Md Ayan"
 }

@@ -27,7 +27,7 @@ agent picks a tab/window → camera rolls → agent drives the app & narrates �
 As a Claude Code plugin:
 
 ```bash
-claude plugin marketplace add <github-user>/autodemo
+claude plugin marketplace add mdayan8/autodemo
 claude plugin install autodemo@autodemo
 ```
 
