@@ -1,57 +1,75 @@
 ---
 name: autodemo
-description: Record a polished, narrated demo video of a web app or website using the autodemo MCP tools (or `npx autodemo` CLI). Use when the user asks for a demo video, product walkthrough, launch video, screen recording of a feature, or a video proof that a feature works.
+description: Record a polished, narrated demo video of any app, website, simulator or emulator while you drive it with your own tools (Claude in Chrome, computer use, any browser tool), using the autodemo MCP tools. Use when the user asks for a demo video, product walkthrough, launch video, tutorial, screen recording of a feature, a long walkthrough (10-20 min), or a video proof that a feature works.
 ---
 
-# Directing a demo with autodemo
+# Shooting a demo with autodemo
 
-You are the director. autodemo is the camera crew: it replays your script at human speed, records only the browser page, auto-zooms on clicks, draws a clean cursor, speaks your narration with a local voice, adds captions and a title card, and cuts dead time.
+autodemo is a screen recorder for you. You use the real app with the tools you already have while it films. Afterwards it does the editing:
+- zoom on the action
+- a smooth cursor and click ripples
+- your narration in a local voice, with captions
+- a background template and window frame
+- title and end cards
+- cutting the time you spent thinking
+
+Your job: **behave like a calm human presenter shooting a demo.**
 
 ## Workflow
 
-1. **Rehearse (nothing is recorded).** `open` the URL, `snapshot` to read the page, and try each action with `step`. Fix selectors until every step works. Use `screenshot` when the layout matters.
-2. **Sign-in.** If the flow needs an account, call `login` with a profile name and ask the user to sign in in the window that opens. Never type passwords yourself. Call `login_done` when they confirm, and add `"profile"` to the script.
-3. **Write the script.** Save it as `demos/<name>/demo.json` in the user's project so it can be re-recorded when the UI changes.
-4. **`check`** the script (a fast dry run). Fix whatever fails.
-5. **`record`**, then call `job` until it's done.
-6. **`review`** the video. Look at every frame: wrong page, error toast, cut-off text, private data on screen? Fix the script and record again (at most twice). Then give the user the video path.
+1. **`intake`**: ask what the user wants (goal, length, voiceover, formats, background).
+2. **Pick what to film**, like choosing what to share in Zoom or Meet, but without a picker:
+   - **A browser tab** (most demos): `tab` = part of its URL or title (`"todomvc.com"`). autodemo finds it in Chrome, Brave, Edge or Safari, makes it active, restores and raises its window, and films only the page. Open the tab first with your own browser tool. With Claude in Chrome, use the tab it controls (signed in as the user).
+   - **An app window**: `window` = app name or title. This covers Figma, a native app, the **iOS Simulator** (`"Simulator"`), an **Android emulator** (`"Android Emulator"`) or a mirrored iPhone (`"iPhone Mirroring"`). Use `windows` to list them.
+   - Never use a web page that records with the browser's share picker (getDisplayMedia). A person must pick there, and sandboxed pages such as claude.ai artifacts block it.
+3. **Choose how you drive it**, in this order:
+   1. Your own browser or computer-use tool.
+   2. If you have none, `camera_act` (real clicks and typing). Loop: `camera_screenshot` → decide → `camera_act`. It takes over the real mouse, so use it only when the user is not using the Mac. The first time, the user may need to allow Accessibility.
+4. **Rehearse off camera.** Walk the flow once:
+   - Find every element.
+   - Close popups and cookie banners.
+   - Load realistic demo data.
+   - Then reset to the starting screen.
+5. **Set the stage.** Make the window large. Ask the user to turn on Do Not Disturb, since notifications drawn over the window would be filmed.
+6. **`camera_start`** with `tab` or `window`, `title`, and a look:
+   - `background`: `macos` (desktop with menu bar and Dock), `macos-light`, `aurora`, `grid`, `midnight`, `sunset`, `ocean`, `forest`, `peach`, `mono`, `light`, two colors, or an image path.
+   - `frame`: `mac` (traffic lights and title) or `browser` (address bar). The default is `mac` on macOS backgrounds.
+   - `output`: `{resolution: "4k"}` for launch videos, or `"1080p"` for long or quick takes.
+7. **Clean the picture.** The start reply flags a bar across the top when it sees one. Look at the screenshot: if a browser bar or banner isn't part of the app, call `camera_trim` (e.g. `{top: 34}`). Examples: Chrome's "Claude started debugging this browser", "Chrome is being controlled by automated software", a cookie banner. Add a few pixels on each side if your browser tool draws a glow around the page.
+8. **Perform.** One step = one `camera_say` call (`text`, plus `click` [x, y] where you are about to click and `chapter` at a new section). Then do the action with your own tool.
+9. **Private moments:** for sign-in or anything private, `camera_pause`, ask the user to do it, then `camera_resume`. Never type passwords.
+10. **`camera_stop`**, then `job` until it's done, then **`review`** every frame. Check for the wrong page, error toasts, private data, or bars you missed (fix those with a re-render: `trim` in recording.json, then `autodemo render <dir>`). Shoot again at most twice.
+11. **Hand it over.** Give the user the video path, the share page, and the `studio` URL (a local page listing every demo you recorded).
 
-## Script format
+## Behave like a human presenter
 
-```json
-{
-  "title": "Invoices in 30 seconds",
-  "subtitle": "Acme Billing",
-  "url": "http://localhost:3000",
-  "profile": "acme",
-  "voice": "af_heart",
-  "blur": [".user-email", "#api-key"],
-  "output": { "vertical": true },
-  "scenes": [
-    { "say": "Creating an invoice used to take five screens. Now it's one." },
-    { "click": "role=button[name=\"New invoice\"]" },
-    { "type": { "into": "label=Client", "text": "Acme Corp" }, "say": "Pick the client..." },
-    { "click": "role=button[name=\"Send\"]", "say": "...and send it." },
-    { "wait_for": "text=Sent", "zoom": false }
-  ]
-}
-```
+- **One idea per step.** Say the line, do the action, let the result sit on screen for about a second before moving on.
+- **Hook first:** the problem or the result. Never "Welcome to our app".
+- **Narrate why, not what.** "One click and the whole team has it", not "Now I click Share".
+- **Short lines:** 6 to 14 words. Silence while something visibly happens is fine.
+- **Deliberate:** no wandering, no wrong clicks, no retries on camera. If something goes wrong, stop and shoot again.
+- **Realistic data:** real-looking names, amounts and dates; never "test123".
+- **Scroll like a person:** in steps, pausing on what matters, not one jump to the bottom.
+- **End on the payoff:** the finished result on screen, plus a closing line.
+- **Length:** 20 to 60 seconds for a feature demo.
 
-- One action per scene: `goto`, `click`, `hover`, `type` ({into, text, enter?, clear?}), `press`, `scroll` (pixels or a selector), `wait_for`, `wait` (ms).
-- Extras: `say` (narration that plays while the action happens; the scene lasts at least as long as the line), `zoom` (`false`, or a level like `2.2`), `pause` (ms), `timeout` (ms).
-- Selectors are Playwright selectors. Prefer what a user sees: `role=button[name="Save"]`, `text=Pricing`, `label=Email`, then CSS.
-- Voices: `af_heart` (default, warm US female), `af_bella`, `am_michael`, `am_adam`, `bf_emma`, `bm_george`.
+## Long takes (10 to 20 minutes)
 
-## What makes a good demo
+Walkthroughs, tutorials and full QA runs work fine.
+- Use `output: {resolution: "1080p", fps: 30}`. Recording at that size costs about 15 MB a minute.
+- Add a `chapter` for every section. They become the share page's table of contents.
+- Narrate every 20 to 60 seconds so the viewer is never lost.
+- Thinking time is cut automatically, so take your time.
+- If macOS drops the stream mid-take, autodemo starts a new segment by itself.
+- Rendering takes roughly as long as the take.
 
-- **20 to 60 seconds.** Show one flow, not a feature tour.
-- **The first line is a hook:** the problem, or the result. Never "Welcome to our app".
-- **Narrate why, not what.** The viewer can see the click. Say what it gets them: "One click and the whole team has it", not "Now I click the share button".
-- **Short lines,** 6 to 14 words each. Not every scene needs one, and silence while something visibly happens is fine.
-- **Use realistic data,** never "test123" or "asdf".
-- **End on the payoff,** the finished result on screen, with a closing line.
-- Hide anything private with `blur`. Use demo accounts.
+## Spend few tokens
 
-## CLI (agents without MCP)
+- Don't screenshot after every step. Read the page with your browser tool's text or DOM reads (`find`, `read_page`, `get_page_text`) to locate elements, and use `camera_screenshot` only to get coordinates or check the look.
+- One `camera_say` call per step (line, click and chapter together). Replies are one word.
+- Rehearse with text tools; screenshots are for layout questions only.
+- `review` once at the end, not during the take.
 
-`npx autodemo check demo.json`, then `npx autodemo run demo.json --out demos/x`, and `npx autodemo render demos/x` re-renders without re-recording. Run `npx autodemo doctor` once to set up.
+## Scripted mode (re-recording in CI)
+
+When the user wants a demo that re-records itself whenever the UI changes, use `open` / `step` / `check` / `record` with a `demos/<name>/demo.json` script. CLI: `npx autodemo run demo.json --out demos/x`.

@@ -1,0 +1,14 @@
+{
+  "name": "autodemo",
+  "owner": {
+    "name": "Md Ayan"
+  },
+  "plugins": [
+    {
+      "name": "autodemo",
+      "source": "./",
+      "description": "A screen recorder for agents: film any tab, app or simulator while you drive it with your own tools, then get a polished narrated demo video.",
+      "version": "0.2.0"
+    }
+  ]
+}

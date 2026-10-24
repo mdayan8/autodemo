@@ -2,14 +2,56 @@
   "title": "A to-do list in 20 seconds",
   "subtitle": "Recorded by an AI agent with autodemo",
   "url": "https://demo.playwright.dev/todomvc/",
-  "output": { "vertical": true },
+  "output": {
+    "vertical": true
+  },
   "scenes": [
-    { "say": "Here's a simple to-do app. Let's plan the weekend." },
-    { "type": { "into": "role=textbox[name=\"What needs to be done?\"]", "text": "Buy groceries", "enter": true }, "say": "First, groceries." },
-    { "type": { "into": "role=textbox[name=\"What needs to be done?\"]", "text": "Call mom", "enter": true } },
-    { "type": { "into": "role=textbox[name=\"What needs to be done?\"]", "text": "Ship the demo video", "enter": true }, "say": "And of course, ship the demo video." },
-    { "click": "role=listitem >> nth=0 >> role=checkbox", "say": "Groceries done. Tick it off." },
-    { "click": "role=link[name=\"Completed\"]", "say": "The Completed filter shows what's finished." },
-    { "click": "role=link[name=\"All\"]", "say": "And that's the whole list. Recorded, zoomed and narrated by the agent itself." }
-  ]
+    {
+      "say": "Here's a simple to-do app. Let's plan the weekend.",
+      "chapter": "The app"
+    },
+    {
+      "type": {
+        "into": "role=textbox[name=\"What needs to be done?\"]",
+        "text": "Buy groceries",
+        "enter": true
+      },
+      "say": "First, groceries."
+    },
+    {
+      "type": {
+        "into": "role=textbox[name=\"What needs to be done?\"]",
+        "text": "Call mom",
+        "enter": true
+      }
+    },
+    {
+      "type": {
+        "into": "role=textbox[name=\"What needs to be done?\"]",
+        "text": "Ship the demo video",
+        "enter": true
+      },
+      "say": "And of course, ship the demo video."
+    },
+    {
+      "click": "role=listitem >> nth=0 >> role=checkbox",
+      "say": "Groceries done. Tick it off.",
+      "chapter": "Getting things done"
+    },
+    {
+      "click": "role=link[name=\"Completed\"]",
+      "say": "The Completed filter shows what's finished."
+    },
+    {
+      "click": "role=link[name=\"All\"]",
+      "say": "And that's the whole list. Recorded, zoomed and narrated by the agent itself."
+    }
+  ],
+  "cta": {
+    "text": "Build your own demo",
+    "url": "github.com/mdayan/autodemo"
+  },
+  "bubble": {
+    "label": "AI"
+  }
 }

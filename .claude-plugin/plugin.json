@@ -1,9 +1,24 @@
 {
   "name": "autodemo",
-  "version": "0.1.0",
-  "description": "Agents record polished, narrated demo videos of web apps: rehearse, record, auto-zoom, local voice, captions.",
-  "author": { "name": "Md Ayan" },
+  "version": "0.2.0",
+  "description": "A screen recorder for agents: film any tab, app or simulator while you drive it with your own tools, then get a polished narrated demo video.",
+  "author": {
+    "name": "Md Ayan"
+  },
   "mcpServers": {
-    "autodemo": { "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/bin/autodemo.js", "mcp"] }
-  }
+    "autodemo": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "autodemo@0.2.0",
+        "mcp"
+      ]
+    }
+  },
+  "keywords": [
+    "demo",
+    "video",
+    "screen-recorder",
+    "mcp"
+  ]
 }

@@ -30,7 +30,7 @@ export async function make(input, { out, headed = false, progress = (m) => conso
 
   const voice = [];
   for (const [i, s] of script.scenes.entries()) {
-    if (!s.say) continue;
+    if (!s.say || script.voiceover === false) continue; // no voiceover: captions only
     progress(`voice ${i + 1}/${script.scenes.length}`);
     voice[i] = await speak(s.say, { voice: script.voice, speed: script.speed });
   }
@@ -42,3 +42,4 @@ export async function make(input, { out, headed = false, progress = (m) => conso
 }
 
 export { validate, render };
+export { slug };

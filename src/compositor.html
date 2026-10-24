@@ -1,0 +1,193 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body style="margin:0;background:#000">
+<canvas id="c"></canvas>
+<script>
+// Draws one finished video frame per call. Node plans the frame; this only paints it.
+const cv = document.getElementById('c'), g = cv.getContext('2d');
+const cache = new Map();
+let BG = ['#1b2140', '#3a2257'], BGIMG = null, U = 1; // U = scale unit (1 at 1080p)
+async function img(src, keep = true) {
+  if (cache.has(src)) return cache.get(src);
+  const im = new Image(); im.src = src; await im.decode();
+  if (keep) { cache.set(src, im); if (cache.size > 6) cache.delete(cache.keys().next().value); }
+  return im;
+}
+const rr = (x, y, w, h, r) => { g.beginPath(); g.roundRect(x, y, w, h, r); };
+const font = (weight, px) => `${weight} ${Math.round(px)}px -apple-system, "SF Pro Display", Inter, "Helvetica Neue", sans-serif`;
+function wrap(text, max) {
+  const words = text.split(' '), lines = []; let cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (g.measureText(t).width > max && cur) { lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+// Background templates: a name below, two colors ['#a', '#b'], or an image (data URL).
+const TEMPLATES = {
+  midnight: ['#1b2140', '#3a2257'], sunset: ['#ff7e5f', '#7b2ff7'], ocean: ['#0f4c75', '#00b4d8'],
+  forest: ['#134e3a', '#6fbf73'], peach: ['#ffd1b3', '#ff8fab'], mono: ['#111111', '#3a3a3a'], light: ['#eef1f6', '#cfd8e8'],
+  aurora: ['#0b1026', '#141a3a'], grid: ['#0e1117', '#1a1f2b'],
+  macos: ['#1d2b64', '#6a3093'], 'macos-light': ['#a8c0ff', '#f6d5f7'],
+};
+let STYLE = 'midnight', LOOK = { frame: 'none', label: '', url: '' };
+const isMac = () => STYLE === 'macos' || STYLE === 'macos-light';
+const blob = (x, y, r, c) => { const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, c); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, cv.width, cv.height); };
+// Generic app icons for the Dock: gradient tiles with a simple glyph (no real app logos).
+const DOCK = [['#3b82f6', '#1d4ed8', '◉'], ['#f97316', '#ea580c', '✉'], ['#22c55e', '#15803d', '✓'], ['#a855f7', '#7e22ce', '♫'],
+  ['#ef4444', '#b91c1c', '▶'], ['#eab308', '#ca8a04', '✎'], ['#06b6d4', '#0e7490', '☁'], ['#64748b', '#334155', '⚙'], ['#ec4899', '#be185d', '❤']];
+function menubar(W) {
+  const h = 30 * U, light = STYLE === 'macos-light';
+  g.save(); g.fillStyle = light ? 'rgba(255,255,255,.55)' : 'rgba(20,20,30,.45)'; g.fillRect(0, 0, W, h);
+  g.fillStyle = light ? '#111' : '#fff'; g.textBaseline = 'middle'; g.font = font(700, 15 * U);
+  let x = 20 * U; g.fillText('\uF8FF', x, h / 2 + 1 * U); x += 30 * U;
+  ['Finder', 'File', 'Edit', 'View', 'Go', 'Window', 'Help'].forEach((m, i) => { g.font = font(i ? 500 : 700, 14 * U); g.fillText(m, x, h / 2); x += g.measureText(m).width + 22 * U; });
+  g.font = font(500, 14 * U); g.textAlign = 'right'; g.fillText('Mon 9:41 AM', W - 20 * U, h / 2); g.restore();
+}
+function dock(W, H) {
+  const n = DOCK.length, s = 58 * U, gap = 12 * U, w = n * s + (n + 1) * gap, h = s + gap * 2, x = (W - w) / 2, y = H - h - 10 * U;
+  g.save(); g.fillStyle = STYLE === 'macos-light' ? 'rgba(255,255,255,.45)' : 'rgba(255,255,255,.18)';
+  g.strokeStyle = 'rgba(255,255,255,.35)'; g.lineWidth = 1 * U; rr(x, y, w, h, 22 * U); g.fill(); g.stroke();
+  DOCK.forEach(([a, b, glyph], i) => {
+    const ix = x + gap + i * (s + gap), iy = y + gap, gr = g.createLinearGradient(ix, iy, ix, iy + s);
+    gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; rr(ix, iy, s, s, 14 * U); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.95)'; g.font = font(700, 28 * U); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(glyph, ix + s / 2, iy + s / 2 + 1 * U);
+  });
+  g.restore();
+}
+function background(W, H) {
+  if (BGIMG) { // cover-fit the image
+    const k = Math.max(W / BGIMG.width, H / BGIMG.height), w = BGIMG.width * k, h = BGIMG.height * k;
+    g.drawImage(BGIMG, (W - w) / 2, (H - h) / 2, w, h); return;
+  }
+  const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, BG[0]); bg.addColorStop(1, BG[1]);
+  g.fillStyle = bg; g.fillRect(0, 0, W, H);
+  if (STYLE === 'aurora') { blob(W * .2, H * .2, W * .5, 'rgba(56,189,248,.45)'); blob(W * .8, H * .3, W * .45, 'rgba(168,85,247,.45)'); blob(W * .5, H * 1, W * .5, 'rgba(34,197,94,.35)'); return; }
+  if (STYLE === 'grid') {
+    g.strokeStyle = 'rgba(255,255,255,.06)'; g.lineWidth = 1;
+    for (let x = 0; x < W; x += 48 * U) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x, H); g.stroke(); }
+    for (let y = 0; y < H; y += 48 * U) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    blob(W * .5, H * .45, W * .45, 'rgba(99,102,241,.25)'); return;
+  }
+  if (isMac()) { // a desktop wallpaper: soft colour fields
+    const light = STYLE === 'macos-light';
+    blob(W * .15, H * .85, W * .55, light ? 'rgba(255,183,197,.7)' : 'rgba(236,72,153,.45)');
+    blob(W * .85, H * .2, W * .55, light ? 'rgba(147,197,253,.7)' : 'rgba(59,130,246,.5)');
+    blob(W * .6, H * .9, W * .4, light ? 'rgba(253,224,171,.6)' : 'rgba(249,115,22,.35)');
+    return;
+  }
+  const glow = g.createRadialGradient(W * 0.8, H * 0.1, 0, W * 0.8, H * 0.1, W * 0.7);
+  glow.addColorStop(0, 'rgba(255,255,255,.10)'); glow.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = glow; g.fillRect(0, 0, W, H);
+}
+function card(W, H, alpha, draw) {
+  g.save(); g.globalAlpha = alpha; background(W, H);
+  g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; draw(); g.restore();
+}
+window.setup = async (W, H, bg, look = {}) => {
+  cv.width = W; cv.height = H; U = Math.min(W, H) / 1080;
+  if (Array.isArray(bg)) BG = bg;
+  else if (TEMPLATES[bg]) { BG = TEMPLATES[bg]; STYLE = bg; }
+  else if (typeof bg === 'string' && bg.startsWith('data:')) BGIMG = await img(bg);
+  LOOK = { ...LOOK, ...look, frame: look.frame || (isMac() ? 'mac' : 'none') };
+};
+// Title bar of the window frame: traffic lights plus a title (mac) or an address bar (browser).
+function titlebar(x, y, w, h) {
+  const light = STYLE === 'macos-light' || STYLE === 'light' || STYLE === 'peach';
+  g.save(); rr(x, y, w, h + 20 * U, 14 * U); g.fillStyle = light ? '#ececec' : '#2b2b30'; g.fill();
+  ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { g.beginPath(); g.arc(x + (22 + i * 22) * U, y + h / 2, 7 * U, 0, Math.PI * 2); g.fillStyle = c; g.fill(); });
+  g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillStyle = light ? '#333' : '#ddd';
+  if (LOOK.frame === 'browser') {
+    const bw = Math.min(w * 0.6, 760 * U), bx = x + (w - bw) / 2;
+    g.fillStyle = light ? '#fff' : '#1c1c20'; rr(bx, y + h * 0.18, bw, h * 0.64, h * 0.32); g.fill();
+    g.fillStyle = light ? '#555' : '#bbb'; g.font = font(500, 15 * U); g.fillText((LOOK.url || LOOK.label || '').replace(/^https?:\/\//, '').slice(0, 70), x + w / 2, y + h / 2);
+  } else { g.font = font(600, 15 * U); g.fillText((LOOK.label || '').slice(0, 80), x + w / 2, y + h / 2); }
+  g.restore();
+}
+window.frame = async (o) => {
+  const W = cv.width, H = cv.height, vertical = H > W;
+  background(W, H);
+  // Window rectangle: keeps the source aspect, padded, captions below it on vertical.
+  const pad = (vertical ? 32 : 64) * U;
+  // Room for the macOS menu bar and Dock, and for the window frame's title bar.
+  const top = isMac() ? 30 * U : 0, bottom = isMac() ? 92 * U : 0, tb = LOOK.frame !== 'none' ? 40 * U : 0;
+  const maxW = W - pad * 2, maxH = (vertical ? H * 0.6 : H - pad * 2 - top - bottom) - tb;
+  let rw = maxW, rh = rw / o.aspect; if (rh > maxH) { rh = maxH; rw = rh * o.aspect; }
+  const rx = (W - rw) / 2, ry = top + (H - top - bottom - rh + tb) / 2 - (vertical ? H * 0.04 : 0), rad = (tb ? 10 : 18) * U;
+  if (isMac()) { menubar(W); dock(W, H); }
+  const [fx, fy, fw, fh] = o.crop;
+  if (o.src) {
+    const im = await img(o.src, !o.src.startsWith('/v/'));
+    g.save();
+    g.shadowColor = 'rgba(0,0,0,.45)'; g.shadowBlur = 50 * U; g.shadowOffsetY = 18 * U;
+    rr(rx, ry - tb, rw, rh + tb, rad); g.fillStyle = '#fff'; g.fill(); g.shadowColor = 'transparent';
+    if (tb) { titlebar(rx, ry - tb, rw, tb); g.beginPath(); g.roundRect(rx, ry, rw, rh, [0, 0, rad, rad]); }
+    else rr(rx, ry, rw, rh, rad);
+    g.clip();
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(im, fx * im.naturalWidth, fy * im.naturalHeight, fw * im.naturalWidth, fh * im.naturalHeight, rx, ry, rw, rh);
+    if (o.cursor) {
+      const cx = rx + ((o.cursor.x - fx) / fw) * rw, cy = ry + ((o.cursor.y - fy) / fh) * rh, s = (1.15 / fw) * 0.55 * U + 0.6 * U;
+      if (o.cursor.ripple != null) {
+        g.beginPath(); g.arc(cx, cy, (12 + 34 * o.cursor.ripple) * s, 0, Math.PI * 2);
+        g.strokeStyle = `rgba(70,130,255,${0.9 * (1 - o.cursor.ripple)})`; g.lineWidth = 4 * s; g.stroke();
+      }
+      g.save(); g.translate(cx, cy); g.scale(s * 1.3, s * 1.3);
+      g.shadowColor = 'rgba(0,0,0,.35)'; g.shadowBlur = 4; g.shadowOffsetY = 2;
+      const p = new Path2D('M0 0 L0 20.5 L5.2 15.6 L8.8 23.6 L12.6 22 L9 14.2 L16 14.2 Z');
+      g.fillStyle = '#111'; g.fill(p); g.lineWidth = 1.8; g.strokeStyle = '#fff'; g.lineJoin = 'round'; g.stroke(p);
+      g.restore();
+    }
+    g.restore();
+  }
+  if (o.key) {
+    g.save(); g.font = font(600, 30 * U);
+    const tw = g.measureText(o.key).width + 44 * U, x = rx + rw - tw - 28 * U, y = ry + 28 * U;
+    g.fillStyle = 'rgba(15,15,20,.82)'; rr(x, y, tw, 54 * U, 12 * U); g.fill();
+    g.fillStyle = '#fff'; g.textBaseline = 'middle'; g.fillText(o.key, x + 22 * U, y + 28 * U); g.restore();
+  }
+  if (o.caption) {
+    // Word-by-word highlight that follows the narration.
+    g.save(); const fs = (vertical ? 46 : 36) * U;
+    g.font = font(650, fs);
+    const lines = wrap(o.caption.text, rw * (vertical ? 0.92 : 0.72)), lh = fs * 1.38;
+    const bw = Math.max(...lines.map(l => g.measureText(l).width)) + fs * 1.6, bh = lines.length * lh + fs * 0.9;
+    const bx = (W - bw) / 2, by = vertical ? ry + rh + fs * 1.4 : ry + rh - bh - fs * 1.4;
+    g.fillStyle = 'rgba(12,12,18,.80)'; rr(bx, by, bw, bh, fs * 0.6); g.fill();
+    g.textBaseline = 'middle';
+    const total = o.caption.text.length; let seen = 0;
+    lines.forEach((l, i) => {
+      let x = (W - g.measureText(l).width) / 2; const y = by + fs * 0.45 + lh * (i + 0.5);
+      for (const w of l.split(' ')) {
+        seen += w.length + 1;
+        g.fillStyle = seen / total <= o.caption.p + 0.04 ? '#fff' : 'rgba(255,255,255,.45)';
+        g.fillText(w, x, y); x += g.measureText(w + ' ').width;
+      }
+    });
+    g.restore();
+  }
+  if (o.bubble) {
+    // Presenter bubble (Loom's camera bubble, for an agent): pulses while the narrator speaks.
+    const r = (vertical ? 70 : 78) * U, bx = rx + r + 30 * U, by = vertical ? ry - r - 30 * U : ry + rh - r - 30 * U;
+    const pulse = o.bubble.speaking ? 1 + 0.06 * Math.abs(Math.sin(o.bubble.phase * 9)) + 0.03 * Math.sin(o.bubble.phase * 23) : 1;
+    g.save();
+    g.beginPath(); g.arc(bx, by, r * pulse + 6 * U, 0, Math.PI * 2);
+    g.fillStyle = o.bubble.speaking ? 'rgba(120,160,255,.85)' : 'rgba(255,255,255,.85)'; g.shadowColor = 'rgba(0,0,0,.4)'; g.shadowBlur = 24 * U; g.fill();
+    g.shadowColor = 'transparent'; g.beginPath(); g.arc(bx, by, r, 0, Math.PI * 2); g.clip();
+    if (o.bubble.image) { const im = await img('/a/' + encodeURIComponent(o.bubble.image)); const s = Math.max(2 * r / im.naturalWidth, 2 * r / im.naturalHeight); g.drawImage(im, bx - im.naturalWidth * s / 2, by - im.naturalHeight * s / 2, im.naturalWidth * s, im.naturalHeight * s); }
+    else { const gr = g.createLinearGradient(bx - r, by - r, bx + r, by + r); gr.addColorStop(0, '#d97757'); gr.addColorStop(1, '#8b5cf6'); g.fillStyle = gr; g.fillRect(bx - r, by - r, 2 * r, 2 * r);
+      g.fillStyle = '#fff'; g.font = font(700, r * 0.8); g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText((o.bubble.label || 'AI').slice(0, 2), bx, by + 2 * U); }
+    g.restore();
+  }
+  if (o.title) card(W, H, o.title.alpha, () => {
+    g.font = font(750, (vertical ? 84 : 76) * U);
+    const lines = wrap(o.title.text, W * 0.8), lh = (vertical ? 100 : 92) * U, sub = o.title.sub ? lh * 0.45 : 0;
+    lines.forEach((l, i) => g.fillText(l, W / 2, H / 2 - (lines.length - 1) * lh / 2 + i * lh - sub));
+    if (o.title.sub) { g.globalAlpha *= 0.7; g.font = font(500, 36 * U); g.fillText(o.title.sub, W / 2, H / 2 + lines.length * lh / 2 + 10 * U); }
+  });
+  if (o.outro) card(W, H, o.outro.alpha, () => {
+    g.font = font(750, 72 * U); g.fillText(o.outro.text || 'Try it yourself', W / 2, H / 2 - 50 * U);
+    if (o.outro.url) {
+      g.font = font(600, 38 * U); const tw = g.measureText(o.outro.url).width + 80 * U;
+      g.fillStyle = '#fff'; rr(W / 2 - tw / 2, H / 2 + 20 * U, tw, 84 * U, 42 * U); g.fill();
+      g.fillStyle = '#1b2140'; g.fillText(o.outro.url, W / 2, H / 2 + 63 * U);
+    }
+  });
+  return cv.toDataURL('image/jpeg', 0.93).slice(23);
+};
+</script></body></html>

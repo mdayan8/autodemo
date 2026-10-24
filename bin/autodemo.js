@@ -4,7 +4,7 @@ import path from 'node:path';
 
 const { values: flags, positionals } = parseArgs({
   allowPositionals: true,
-  options: { out: { type: 'string' }, headed: { type: 'boolean' }, profile: { type: 'string' } },
+  options: { port: { type: 'string' }, out: { type: 'string' }, headed: { type: 'boolean' }, profile: { type: 'string' } },
 });
 const [cmd, arg] = positionals;
 
@@ -15,6 +15,7 @@ const HELP = `autodemo - agents record their own product demos
   autodemo check demo.json         fast dry run, reports the first broken scene
   autodemo render <dir>            re-render an existing recording (no re-recording)
   autodemo login <url> --profile p open a browser so you can sign in; the session is saved to profile p
+  autodemo serve [dir]             studio: browse every recorded demo (default ./demos)  [--port 4747]
   autodemo doctor                  check ffmpeg, Chromium and the voice model`;
 
 switch (cmd) {
@@ -46,6 +47,12 @@ switch (cmd) {
     await b.page.goto(arg);
     console.log(`Sign in, then close the browser window. Session saves to profile "${flags.profile || 'default'}".`);
     await new Promise((r) => b.ctx.on('close', r));
+    break;
+  }
+  case 'serve': {
+    const { serve } = await import('../src/serve.js');
+    const { url } = await serve(arg || 'demos', { port: Number(flags.port || 4747) });
+    console.log(`autodemo studio: ${url}`);
     break;
   }
   case 'doctor': {
