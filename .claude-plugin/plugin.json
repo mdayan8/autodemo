@@ -1,0 +1,9 @@
+{
+  "name": "autodemo",
+  "version": "0.1.0",
+  "description": "Agents record polished, narrated demo videos of web apps: rehearse, record, auto-zoom, local voice, captions.",
+  "author": { "name": "Md Ayan" },
+  "mcpServers": {
+    "autodemo": { "command": "node", "args": ["${CLAUDE_PLUGIN_ROOT}/bin/autodemo.js", "mcp"] }
+  }
+}

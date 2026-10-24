@@ -1,0 +1,17 @@
+{
+  "title": "Meet Md Ayan in 40 seconds",
+  "subtitle": "Recorded, zoomed and narrated by an AI agent",
+  "url": "https://www.memdayan.space/",
+  "voice": "am_michael",
+  "output": { "vertical": true },
+  "scenes": [
+    { "wait": 1500, "say": "Most portfolios are a list of links. This one is a story, about an overthinker who builds." },
+    { "hover": "role=figure[name=\"me, mid-overthink.\"]", "say": "Hover over his photo, and he starts thinking out loud.", "pause": 600 },
+    { "click": "role=navigation >> role=link[name=\"work\"]", "say": "Jump to the work. Real products, used by real people." },
+    { "click": "role=button[name=\"ai\"]", "say": "Filter to AI, and the research shows up." },
+    { "scroll": "role=heading[name=\"MIP\"]" },
+    { "hover": "role=heading[name=\"MIP\"]", "say": "Like MIP. A security layer that cut data theft by a hijacked agent from ninety five percent to about one." },
+    { "click": "role=navigation >> role=link[name=\"let's talk\"]", "say": "And when you want to talk, it's one click away." },
+    { "hover": "role=link[name=\"github ↗\"]", "say": "Still overthinking. Still building. Go say hi." }
+  ]
+}
