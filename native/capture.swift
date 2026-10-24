@@ -7,6 +7,7 @@
 //   autodemo-capture record --window ID --out f.mp4 [--fps 60] [--cursor]
 //       prints {"started":epochMs,...}; stops on "stop" / EOF on stdin, then prints {"stopped":epochMs}
 //       "shot PATH" on stdin saves the latest frame (a second capture would kill the recording)
+//   autodemo-capture front --crop x,y,w,h --app NAME -> {"covered": bool, "by": app} (is anything on top of that area?)
 //   autodemo-capture act click X Y | type TEXT | key NAME [cmd,shift,alt,ctrl] | scroll DY
 //       real mouse/keyboard input at screen points (needs Accessibility permission)
 import Foundation
@@ -179,6 +180,28 @@ struct Capture {
         if !sink.dead { Task { try? await stream.stopCapture() } }
       }
       emit(["stopped": stoppedAt, "file": out])
+
+    case "front":
+      // Front-to-back list of on-screen windows: the first one overlapping the filmed area must be
+      // the filmed window itself (same app, same rectangle). Notifications and other apps on top = covered.
+      guard let c = arg("--crop")?.split(separator: ",").compactMap({ Double($0) }), c.count == 4 else { fail("--crop required") }
+      let area = CGRect(x: c[0], y: c[1], width: c[2], height: c[3]), app = arg("--app") ?? ""
+      let list = (CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]]) ?? []
+      for w in list {
+        let owner = w[kCGWindowOwnerName as String] as? String ?? "", layer = w[kCGWindowLayer as String] as? Int ?? 0
+        let alpha = w[kCGWindowAlpha as String] as? Double ?? 1
+        guard alpha > 0.05, let b = w[kCGWindowBounds as String] as? [String: Double] else { continue }
+        let r = CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
+        let hit = r.intersection(area)
+        guard !hit.isNull, hit.width * hit.height > 400 else { continue }
+        let isOverlay = layer != 0 && !owner.contains("Notification") // menu bar, Dock, cursor, agent overlays
+        if isOverlay || owner == "Window Server" || owner == "Dock" { continue }
+        if layer == 0 && owner == app && abs(r.minX - area.minX) < 3 && abs(r.minY - area.minY) < 3 && abs(r.width - area.width) < 3 { emit(["covered": false]); exit(0) }
+        // The filmed app's own menus, dropdowns and popovers are part of the demo.
+        if owner == app && r.width * r.height < area.width * area.height * 0.6 { continue }
+        emit(["covered": true, "by": owner]); exit(0)
+      }
+      emit(["covered": false])
 
     case "act":
       if !AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary) {

@@ -92,5 +92,5 @@ Each demo folder contains:
 ## Limits
 
 - Camera mode needs macOS 14+, because it uses ScreenCaptureKit. The Swift helper builds on first use and needs Xcode Command Line Tools. Scripted mode runs anywhere Playwright runs.
-- The camera films the window's area of the screen, so anything on top of it is filmed too. Turn on Do Not Disturb, and don't use the same window while it records.
+- The camera films the window's area of the screen. A cover guard pauses whenever another window or a notification is on top of it, and drops the moment before it noticed, so you can keep using your Mac during a take. Don't use the filmed window yourself while it records.
 - macOS sometimes stops a capture stream on its own (about once a minute on some machines). autodemo starts a new segment immediately, losing about a second each time.

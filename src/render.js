@@ -247,7 +247,8 @@ async function renderChunk(browser, meta, dir, frames, from, to, { W, H, fps }, 
   }
   await page.evaluate(([w, h, b, l]) => window.setup(w, h, b, l), [W, H, bg, { frame: meta.frame, label: meta.windowTitle || meta.title || '', url: meta.url || '' }]);
   const enc = ffmpeg(['-f', 'image2pipe', '-framerate', String(fps), '-c:v', 'mjpeg', '-i', '-',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '16', '-pix_fmt', 'yuv420p', '-r', String(fps), file]);
+    // Long takes (over 2 min) encode at crf 20: about half the size, no visible loss on screen content.
+    '-c:v', 'libx264', '-preset', 'medium', '-crf', String(frames.length / fps > 120 ? 20 : 16), '-pix_fmt', 'yuv420p', '-r', String(fps), file]);
   try {
     for (let i = from; i < to; i++) {
       const o = frames[i];
@@ -272,6 +273,10 @@ async function renderChunk(browser, meta, dir, frames, from, to, { W, H, fps }, 
 async function renderVideo(meta, dir, name, size, fps, progress) {
   const [W, H] = size;
   const { frames, total, says } = plan(meta, { W, H, fps });
+  // Fail early instead of filling the disk: the encoded parts plus the final file exist at once.
+  const mbps = (W * H) / (1920 * 1080) * (total > 120 ? 0.6 : 1.1); // MB per second of video, generous
+  const need = total * mbps * 2.2 * 1e6, free = freeBytes(dir);
+  if (free < need) throw new Error(`Not enough disk space to render ${Math.round(total)}s at ${W}x${H}: needs about ${Math.round(need / 1e6)} MB, ${Math.round(free / 1e6)} MB free. Free some space (or use output.resolution "1080p") and run: autodemo render ${dir}`);
   const workers = Math.max(1, Math.min(meta.workers ?? 4, Math.floor(os.cpus().length / 2), Math.ceil(frames.length / 90)));
   const per = Math.ceil(frames.length / workers);
   const browser = await chromium.launch();
@@ -316,6 +321,8 @@ async function renderVideo(meta, dir, name, size, fps, progress) {
   fs.rmSync(silent);
   return file;
 }
+
+export const freeBytes = (dir) => { try { const s = fs.statfsSync(dir); return s.bavail * s.bsize; } catch { return Infinity; } };
 
 // trim {top, right, bottom, left} (points) cuts edges off the recording: browser info bars, banners,
 // an agent's on-page glow. Everything downstream just sees a smaller viewport.

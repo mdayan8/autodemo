@@ -8,10 +8,10 @@ import path from 'node:path';
 import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { findWindow, startRecording, shot, act } from './native.js';
+import { findWindow, startRecording, shot, act, covered } from './native.js';
 import { activity } from './activity.js';
 import { speak } from './narrate.js';
-import { render } from './render.js';
+import { render, freeBytes } from './render.js';
 
 const run = promisify(execFile);
 
@@ -72,6 +72,7 @@ export class CameraSession {
       const s = new CameraSession({ app: t.app, title: t.title, url: t.url }, { ...opts, crop: t.crop });
       s.front = { tab: opts.tab };
       await s.resume();
+      s.watch();
       return s;
     }
     // A named window is raised and filmed alone (its rectangle of the screen); no window = whole screen.
@@ -84,6 +85,7 @@ export class CameraSession {
     const s = new CameraSession(win || { app: 'Screen', title: 'whole screen' }, opts);
     s.front = s0;
     await s.resume();
+    s.watch();
     return s;
   }
 
@@ -92,6 +94,9 @@ export class CameraSession {
     this.opts = opts;
     this.out = path.resolve(opts.out);
     fs.mkdirSync(this.out, { recursive: true });
+    // ~10 MB/min to record at 1080p (~40 at 4K), and about as much again to render.
+    const free = freeBytes(this.out);
+    if (free < (opts.minFreeMB ?? 400) * 1e6) throw new Error(`Only ${Math.round(free / 1e6)} MB of disk free. A take needs a few hundred MB (more for long or 4K takes). Free some space first.`);
     this.segments = [];
     this.events = [];
     this.clock = 0; // session seconds in finished segments (paused time is not part of the video)
@@ -114,14 +119,37 @@ export class CameraSession {
     this.cur = { file, rec, epoch: rec.started.started, start: this.clock };
   }
 
-  async pause() {
+  // cut: seconds dropped from the end of the segment (the cover guard drops the moment before it noticed).
+  async pause({ cut = 0 } = {}) {
     if (!this.cur) return;
     const { stopped } = await this.cur.rec.stop();
-    const duration = (stopped - this.cur.epoch) / 1000;
+    const duration = Math.max(0.1, (stopped - this.cur.epoch) / 1000 - cut);
     this.segments.push({ file: path.basename(this.cur.file), start: this.cur.start, duration });
     this.clock += duration;
     this.cur = null;
   }
+
+  // Cover guard: the camera films a rectangle of the screen, so whenever another window or a
+  // notification is on top of the filmed window, pause; resume once it is clear. Nothing that
+  // covered the window ever reaches the video.
+  watch() {
+    if (!this.opts.crop || this.opts.guard === false) return;
+    let busy = false;
+    this.guard = setInterval(async () => {
+      if (busy || this.held) return;
+      busy = true;
+      try {
+        const r = await covered(this.opts.crop, this.win.app);
+        if (r.covered && this.cur) { this.blocked = r.by; this.log?.(`covered by ${r.by}: paused`); await this.pause({ cut: 0.8 }); }
+        else if (!r.covered && this.blocked) { this.blocked = null; this.log?.('clear: rolling'); await this.resume(); }
+      } catch (e) { this.log?.(`guard check failed: ${e.message}`); } // never stops the take
+      busy = false;
+    }, 300);
+  }
+
+  // Pause/resume asked for by the agent (sign-in): the guard leaves it alone until resume.
+  async hold() { this.held = true; await this.pause(); }
+  async release() { this.held = false; this.blocked = null; await this.resume(); }
 
   mark(e) { this.events.push({ ...e, t: this.now() }); }
   say(text) { this.mark({ type: 'say', text }); }
@@ -184,6 +212,7 @@ export class CameraSession {
   }
 
   async stop({ progress = () => {} } = {}) {
+    clearInterval(this.guard);
     await this.pause();
     if (!this.segments.length) throw new Error('Nothing was recorded.');
     const vp = { width: this.points.width, height: this.points.height };

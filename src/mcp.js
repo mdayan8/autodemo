@@ -353,12 +353,12 @@ server.registerTool('camera_screenshot', {
 server.registerTool('camera_pause', {
   description: 'Stop filming (the user signs in, or anything private). Nothing is recorded until camera_resume.',
   inputSchema: {},
-}, safe(async () => { await rolling().pause(); return reply(text('paused')); }));
+}, safe(async () => { await rolling().hold(); return reply(text('paused')); }));
 
 server.registerTool('camera_resume', {
   description: 'Resume filming after camera_pause.',
   inputSchema: {},
-}, safe(async () => { await rolling().resume(); return reply(text('rolling')); }));
+}, safe(async () => { await rolling().release(); return reply(text('rolling')); }));
 
 let studio = null;
 server.registerTool('studio', {

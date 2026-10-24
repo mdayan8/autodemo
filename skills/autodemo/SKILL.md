@@ -30,7 +30,7 @@ Your job: **behave like a calm human presenter shooting a demo.**
    - Close popups and cookie banners.
    - Load realistic demo data.
    - Then reset to the starting screen.
-5. **Set the stage.** Make the window large. Ask the user to turn on Do Not Disturb, since notifications drawn over the window would be filmed.
+5. **Set the stage.** Make the window large. A cover guard pauses filming whenever another window or a notification covers the filmed one, so the user can keep working. Still ask them not to use the filmed window during the take.
 6. **`camera_start`** with `tab` or `window`, `title`, and a look:
    - `background`: `macos` (desktop with menu bar and Dock), `macos-light`, `aurora`, `grid`, `midnight`, `sunset`, `ocean`, `forest`, `peach`, `mono`, `light`, two colors, or an image path.
    - `frame`: `mac` (traffic lights and title) or `browser` (address bar). The default is `mac` on macOS backgrounds.

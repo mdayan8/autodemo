@@ -50,6 +50,9 @@ const target = (t) => (!t ? [] : typeof t === 'object' ? ['--crop', [t.x, t.y, t
 // Real input at screen points: act('click', x, y) | act('type', text) | act('key', 'return', 'cmd') | act('scroll', dy)
 export const act = (...args) => call(['act', ...args.filter((a) => a !== undefined).map(String)]);
 
+// Is anything (another window, a notification) on top of the filmed area?
+export const covered = (crop, app) => call(['front', '--crop', [crop.x, crop.y, crop.width, crop.height].map(Math.round).join(','), '--app', app]);
+
 export const shot = (windowId, out) => call(['shot', ...target(windowId), '--out', out]);
 
 // One continuous recording. stop() resolves once the file is finalized. onDead fires if macOS
